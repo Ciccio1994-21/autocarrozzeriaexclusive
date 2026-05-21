@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
@@ -71,11 +72,17 @@
             projectId: "maxcar-7416d",
             storageBucket: "maxcar-7416d.firebasestorage.app",
             messagingSenderId: "279232212865",
-            appId: "1:279232212865:web:9368d42766b9a011bb4280",
-            measurementId: "G-223C65R2FQ"
+            appId: "1:279232212865:web:12cdcc47392b17aebb4280",
+            measurementId: "G-1ZS56PTHDK"
         };
 
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+            if (typeof firebase.analytics === 'function') {
+                firebase.analytics();
+            }
+        }
+        
         const db = firebase.firestore();
         const auth = firebase.auth();
         const appId = "autocarrozzeria-exclusive"; 
