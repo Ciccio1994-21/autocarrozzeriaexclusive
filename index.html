@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autocarrozzeria Exclusive | Alcamo (TP)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #09090b; /* zinc-950 */
+            color: #f4f4f5; /* zinc-100 */
+            margin: 0; 
+            min-height: 100vh; 
+        }
+        .hero-bg {
+            background: linear-gradient(rgba(9, 9, 11, 0.8), rgba(9, 9, 11, 0.95)), 
+                        url('https://images.unsplash.com/photo-1605810754877-6a45749f7055?auto=format&fit=crop&q=80&w=1600');
+            background-size: cover;
+            background-position: center;
+        }
+        #loader {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #09090b; z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        .social-icon-img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+            filter: invert(1); /* Rende le icone social bianche */
+        }
+        .social-link:hover .social-icon-img {
+            transform: scale(1.15);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #18181b; } /* zinc-900 */
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; } /* zinc-700 */
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; } /* zinc-600 */
+    </style>
+</head>
+<body>
+    <div id="loader">
+        <div class="flex flex-col items-center gap-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+            <p class="text-xs font-bold uppercase tracking-widest text-zinc-500">Caricamento...</p>
+        </div>
+    </div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCB5yV6u4DtzUFb0jADUJobh8In52JNzp4",
+            authDomain: "maxcar-7416d.firebaseapp.com",
+            projectId: "maxcar-7416d",
+            storageBucket: "maxcar-7416d.firebasestorage.app",
+            messagingSenderId: "279232212865",
+            appId: "1:279232212865:web:9368d42766b9a011bb4280",
+            measurementId: "G-223C65R2FQ"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const appId = "autocarrozzeria-exclusive"; 
+        const COLLECTION_PATH = `artifacts/${appId}/public/data/automobili`;
+
+        const IG_ICON = "https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg";
+        const FB_ICON = "https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg";
+
+        const App = () => {
+            const [currentPage, setCurrentPage] = useState('home');
+            const [selectedCar, setSelectedCar] = useState(null);
+            const [autoList, setAutoList] = useState([]);
+            const [filter, setFilter] = useState('Tutte');
+            const [loading, setLoading] = useState(true);
+            const [activeImage, setActiveImage] = useState(null);
+            const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+            useEffect(() => {
+                const init = async () => {
+                    try {
+                        await auth.signInAnonymously();
+                        const unsubscribe = db.collection(COLLECTION_PATH)
+                            .orderBy('createdAt', 'desc')
+                            .onSnapshot(snapshot => {
+                                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                                setAutoList(data);
+                                setLoading(false);
+                                const loader = document.getElementById('loader');
+                                if (loader) loader.style.opacity = '0';
+                                setTimeout(() => { if (loader) loader.style.display = 'none'; }, 500);
+                            }, (err) => {
+                                console.error("Errore database:", err);
+                                setLoading(false);
+                            });
+                        return () => unsubscribe();
+                    } catch (error) {
+                        console.error("Errore Auth:", error);
+                    }
+                };
+                init();
+            }, []);
+
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            }, [currentPage, autoList, filter, selectedCar, isMobileMenuOpen]);
+
+            useEffect(() => {
+                window.scrollTo(0, 0);
+            }, [currentPage, selectedCar]);
+
+            const openCarDetails = (car) => {
+                setSelectedCar(car);
+                setActiveImage(car.immagine);
+                setCurrentPage('prodotto');
+            };
+
+            const carImages = useMemo(() => {
+                if (!selectedCar) return [];
+                const images = [selectedCar.immagine];
+                if (selectedCar.galleria && Array.isArray(selectedCar.galleria)) {
+                    selectedCar.galleria.forEach(img => {
+                        if (img !== selectedCar.immagine) images.push(img);
+                    });
+                }
+                return images;
+            }, [selectedCar]);
+
+            return (
+                <div className="min-h-screen flex flex-col bg-zinc-950 overflow-x-hidden w-full text-zinc-100">
+                    <nav className="bg-black/90 backdrop-blur-md border-b border-zinc-800/80 sticky top-0 z-50 px-6 py-4 shadow-sm w-full">
+                        <div className="max-w-7xl mx-auto flex justify-between items-center">
+                            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setCurrentPage('home'); setSelectedCar(null); setIsMobileMenuOpen(false); }}>
+                                <div className="bg-red-600 p-2 rounded-lg text-white shadow-md shadow-red-900/50 group-hover:bg-red-500 transition">
+                                    <i data-lucide="shield-check" className="w-6 h-6"></i>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-extrabold uppercase tracking-tighter text-xl text-white leading-none">Exclusive</span>
+                                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Autocarrozzeria</span>
+                                </div>
+                            </div>
+                            
+                            {/* Menu Desktop */}
+                            <div className="hidden md:flex gap-8 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                                <button onClick={() => { setCurrentPage('home'); setSelectedCar(null); }} className={`hover:text-red-500 transition ${currentPage === 'home' ? 'text-red-500' : ''}`}>Home</button>
+                                <button onClick={() => { setCurrentPage('servizi'); setSelectedCar(null); }} className={`hover:text-red-500 transition ${currentPage === 'servizi' ? 'text-red-500' : ''}`}>Servizi</button>
+                                <button onClick={() => { setCurrentPage('vetrina'); setSelectedCar(null); }} className={`hover:text-red-500 transition ${currentPage === 'vetrina' ? 'text-red-500' : ''}`}>Auto Usate</button>
+                                <button onClick={() => { setCurrentPage('chisiamo'); setSelectedCar(null); }} className={`hover:text-red-500 transition ${currentPage === 'chisiamo' ? 'text-red-500' : ''}`}>Chi Siamo</button>
+                                <button onClick={() => { setCurrentPage('contatti'); setSelectedCar(null); }} className={`hover:text-red-500 transition ${currentPage === 'contatti' ? 'text-red-500' : ''}`}>Contatti</button>
+                            </div>
+
+                            {/* Hamburger Menu Mobile */}
+                            <button className="md:hidden text-zinc-300 focus:outline-none p-2 hover:text-red-500 transition" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                                <i data-lucide={isMobileMenuOpen ? "x" : "menu"} className="w-6 h-6"></i>
+                            </button>
+                        </div>
+
+                        {/* Dropdown Mobile */}
+                        {isMobileMenuOpen && (
+                            <div className="md:hidden absolute top-full left-0 w-full bg-zinc-900 border-b border-zinc-800 shadow-2xl flex flex-col py-6 px-8 gap-6 text-sm font-bold uppercase tracking-widest text-zinc-300 animate-in slide-in-from-top-2 duration-300">
+                                <button onClick={() => { setCurrentPage('home'); setSelectedCar(null); setIsMobileMenuOpen(false); }} className={`text-left hover:text-red-500 transition ${currentPage === 'home' ? 'text-red-500' : ''}`}>Home</button>
+                                <button onClick={() => { setCurrentPage('servizi'); setSelectedCar(null); setIsMobileMenuOpen(false); }} className={`text-left hover:text-red-500 transition ${currentPage === 'servizi' ? 'text-red-500' : ''}`}>Servizi</button>
+                                <button onClick={() => { setCurrentPage('vetrina'); setSelectedCar(null); setIsMobileMenuOpen(false); }} className={`text-left hover:text-red-500 transition ${currentPage === 'vetrina' ? 'text-red-500' : ''}`}>Auto Usate</button>
+                                <button onClick={() => { setCurrentPage('chisiamo'); setSelectedCar(null); setIsMobileMenuOpen(false); }} className={`text-left hover:text-red-500 transition ${currentPage === 'chisiamo' ? 'text-red-500' : ''}`}>Chi Siamo</button>
+                                <button onClick={() => { setCurrentPage('contatti'); setSelectedCar(null); setIsMobileMenuOpen(false); }} className={`text-left hover:text-red-500 transition ${currentPage === 'contatti' ? 'text-red-500' : ''}`}>Contatti</button>
+                            </div>
+                        )}
+                    </nav>
+
+                    <main className="flex-grow w-full">
+                        
+                        {}
+                        {currentPage === 'home' && (
+                            <>
+                                <div className="hero-bg min-h-[80vh] flex items-center justify-center text-center text-white px-4 relative">
+                                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent"></div>
+                                    <div className="max-w-4xl animate-in fade-in slide-in-from-bottom-10 duration-1000 relative z-10">
+                                        <div className="inline-flex items-center gap-2 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full mb-6 border border-zinc-700/50">
+                                            <i data-lucide="star" className="w-4 h-4 text-red-500"></i>
+                                            <span className="text-xs font-bold uppercase tracking-widest text-zinc-300">Officina fiduciaria Mercedes Benz</span>
+                                        </div>
+                                        <h1 className="text-5xl md:text-7xl font-extrabold uppercase tracking-tighter mb-6 leading-tight">
+                                            Autocarrozzeria <br/><span className="text-red-600">Exclusive</span>
+                                        </h1>
+                                        <p className="text-lg md:text-xl font-light mb-10 text-zinc-400 max-w-2xl mx-auto">
+                                            L'eccellenza per la tua auto ad Alcamo. Dalla carrozzeria di precisione alla compravendita di veicoli garantiti.
+                                        </p>
+                                        <div className="flex flex-col md:flex-row gap-4 justify-center">
+                                            <button onClick={() => setCurrentPage('servizi')} className="bg-red-600 hover:bg-red-700 px-10 py-4 rounded-xl font-bold uppercase text-sm tracking-widest transition shadow-lg shadow-red-900/50 hover:scale-105 transform border border-red-500 text-white">Scopri i Servizi</button>
+                                            <a href="tel:0924200308" className="bg-zinc-900/80 hover:bg-zinc-800 backdrop-blur-md px-10 py-4 rounded-xl font-bold uppercase text-sm tracking-widest transition border border-zinc-700 text-white">Contattaci Subito</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="py-20 px-6 bg-zinc-950 border-y border-zinc-800/50">
+                                    <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-12">
+                                        <div className="flex flex-col items-center text-center group cursor-pointer" onClick={() => setCurrentPage('servizi')}>
+                                            <div className="w-20 h-20 bg-zinc-900 text-red-500 rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-zinc-800 group-hover:scale-110 group-hover:border-red-500/50 transition"><i data-lucide="wrench" className="w-10 h-10"></i></div>
+                                            <h3 className="font-black uppercase tracking-tight text-xl mb-3 text-white">Carrozzeria e Verniciatura</h3>
+                                            <p className="text-zinc-400 text-sm leading-relaxed">Verniciatura a forno, raddrizzatura scocche su banco e riparazioni impeccabili per ripristinare il tuo veicolo.</p>
+                                        </div>
+                                        <div className="flex flex-col items-center text-center group cursor-pointer" onClick={() => setCurrentPage('vetrina')}>
+                                            <div className="w-20 h-20 bg-zinc-900 text-red-500 rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-zinc-800 group-hover:scale-110 group-hover:border-red-500/50 transition"><i data-lucide="car-front" className="w-10 h-10"></i></div>
+                                            <h3 className="font-black uppercase tracking-tight text-xl mb-3 text-white">Compravendita Auto Usate</h3>
+                                            <p className="text-zinc-400 text-sm leading-relaxed">In collaborazione con Daniele Nicosia, offriamo una selezione di auto usate garantite e pronte per te.</p>
+                                        </div>
+                                        <div className="flex flex-col items-center text-center group cursor-pointer" onClick={() => setCurrentPage('servizi')}>
+                                            <div className="w-20 h-20 bg-zinc-900 text-red-500 rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-zinc-800 group-hover:scale-110 group-hover:border-red-500/50 transition"><i data-lucide="wind" className="w-10 h-10"></i></div>
+                                            <h3 className="font-black uppercase tracking-tight text-xl mb-3 text-white">Purificazione Interni</h3>
+                                            <span className="bg-red-900/30 text-red-400 px-2 py-1 rounded text-[10px] font-bold uppercase mb-2 border border-red-900/50">Novità</span>
+                                            <p className="text-zinc-400 text-sm leading-relaxed">Servizio specializzato di sanificazione e purificazione degli interni per garantirti un ambiente sano e pulito.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {}
+                        {currentPage === 'servizi' && (
+                            <div className="py-20 px-6 bg-zinc-950">
+                                <div className="max-w-7xl mx-auto animate-in fade-in duration-700">
+                                    <div className="text-center mb-16">
+                                        <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-white mb-6">I Nostri <span className="text-red-600">Servizi</span></h2>
+                                        <p className="text-lg text-zinc-400 max-w-2xl mx-auto font-medium">Da Exclusive offriamo soluzioni complete per la tua auto, dalla cura estetica all'assistenza tecnica specializzata.</p>
+                                    </div>
+
+                                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                        {[
+                                            { icon: "star", title: "Fiduciaria Mercedes Benz", desc: "Assistenza autorizzata e standard qualitativi d'eccellenza per i veicoli della Stella." },
+                                            { icon: "paint-bucket", title: "Verniciatura a Forno", desc: "Processo di verniciatura professionale in ambiente controllato per risultati brillanti e duraturi." },
+                                            { icon: "hammer", title: "Raddrizzatura Scocche", desc: "Interventi millimetrici su banco per ripristinare la perfetta integrità strutturale del veicolo." },
+                                            { icon: "monitor-play", title: "Diagnosi Computerizzata", desc: "Rilevamento preciso di anomalie elettroniche e meccaniche con strumentazione all'avanguardia." },
+                                            { icon: "wind", title: "Purificazione Interni", desc: "Trattamento di sanificazione profonda dell'abitacolo per eliminare batteri, virus e cattivi odori.", badge: "Nuovo!" },
+                                            { icon: "thermometer-snowflake", title: "Ricarica Aria Condizionata", desc: "Manutenzione e ricarica dell'impianto di climatizzazione per il tuo massimo comfort." },
+                                            { icon: "car", title: "Noleggio & Auto di Cortesia", desc: "Servizio di noleggio auto e vetture di cortesia per non lasciarti mai a piedi durante le riparazioni." },
+                                            { icon: "shield-alert", title: "Infortunistica Stradale", desc: "Gestione completa delle pratiche e assistenza in caso di sinistro stradale." },
+                                            { icon: "scan", title: "Riparazione Parabrezza", desc: "Interventi rapidi su scheggiature per evitare la completa sostituzione del cristallo." },
+                                        ].map((serv, idx) => (
+                                            <div key={idx} className="bg-zinc-900 p-8 rounded-[2rem] shadow-sm border border-zinc-800 hover:border-red-500/50 hover:shadow-red-900/10 transition duration-300 relative overflow-hidden group">
+                                                {serv.badge && <div className="absolute top-4 right-4 bg-red-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full">{serv.badge}</div>}
+                                                <div className="w-14 h-14 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition"><i data-lucide={serv.icon} className="w-6 h-6"></i></div>
+                                                <h4 className="text-xl font-black uppercase mb-3 text-white">{serv.title}</h4>
+                                                <p className="text-zinc-400 leading-relaxed text-sm">{serv.desc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {}
+                        {(currentPage === 'home' || currentPage === 'vetrina') && (
+                            <div className="py-20 px-6 max-w-7xl mx-auto">
+                                <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6 border-b border-zinc-800 pb-8">
+                                    <div className="flex flex-col">
+                                        <h2 className="text-4xl font-black uppercase tracking-tight text-white">Vetrina <span className="text-red-600">Auto Usate</span></h2>
+                                        <p className="text-sm font-bold text-zinc-500 mt-2">In collaborazione con Daniele Nicosia</p>
+                                    </div>
+                                    <div className="flex gap-2 bg-zinc-900 p-1 rounded-full shadow-sm border border-zinc-800 overflow-x-auto max-w-full">
+                                        {['Tutte', 'SUV', 'Berlina', 'Utilitaria', 'Sportiva'].map(c => (
+                                            <button key={c} onClick={() => setFilter(c)} className={`whitespace-nowrap px-4 md:px-6 py-2 rounded-full text-[10px] font-bold uppercase transition ${filter === c ? 'bg-red-600 text-white shadow-md' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}>{c}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                                    {autoList.filter(a => filter === 'Tutte' || a.categoria === filter).map(car => (
+                                        <div key={car.id} onClick={() => openCarDetails(car)} className="bg-zinc-900 rounded-[2rem] overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-red-900/20 transition duration-500 border border-zinc-800 group cursor-pointer">
+                                            <div className="h-64 overflow-hidden relative border-b border-zinc-800">
+                                                <img src={car.immagine} className="w-full h-full object-cover group-hover:scale-110 group-hover:opacity-80 transition duration-700" alt={car.modello} />
+                                                <div className="absolute top-4 left-4 bg-black/80 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black text-white border border-zinc-700 shadow-sm uppercase tracking-widest">{car.categoria}</div>
+                                                <div className="absolute bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-2xl font-black text-xl shadow-lg">€{Number(car.prezzo)?.toLocaleString()}</div>
+                                            </div>
+                                            <div className="p-8">
+                                                <h3 className="font-black uppercase text-2xl mb-1 tracking-tighter text-white leading-none">{car.marca}</h3>
+                                                <p className="text-red-500 font-bold uppercase text-sm mb-4">{car.modello}</p>
+                                                <div className="flex items-center gap-4 text-zinc-500 text-[10px] font-bold uppercase border-t border-zinc-800 pt-4">
+                                                    <span className="flex items-center gap-1"><i data-lucide="calendar" className="w-3 h-3 text-zinc-400"></i> {car.anno}</span>
+                                                    <span className="flex items-center gap-1"><i data-lucide="gauge" className="w-3 h-3 text-zinc-400"></i> {Number(car.km)?.toLocaleString()} KM</span>
+                                                    <span className="flex items-center gap-1"><i data-lucide="fuel" className="w-3 h-3 text-zinc-400"></i> {car.alimentazione}</span>
+                                                </div>
+                                                <button className="w-full mt-8 bg-black border border-zinc-700 text-white py-4 rounded-xl font-bold text-[11px] uppercase tracking-widest group-hover:bg-red-600 group-hover:border-red-600 transition duration-300">Visualizza Dettagli</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {autoList.length === 0 && !loading && (
+                                        <div className="col-span-full py-12 text-center">
+                                            <p className="text-zinc-500 font-bold">Nessun veicolo attualmente disponibile in vetrina.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {}
+                        {currentPage === 'prodotto' && selectedCar && (
+                            <div className="py-12 px-6 max-w-7xl mx-auto animate-in fade-in duration-500">
+                                <button onClick={() => setCurrentPage('vetrina')} className="flex items-center gap-2 text-zinc-400 font-bold uppercase text-xs mb-8 hover:text-red-500 transition">
+                                    <i data-lucide="arrow-left" className="w-4 h-4"></i> Torna alla vetrina
+                                </button>
+                                
+                                <div className="grid lg:grid-cols-2 gap-12 mb-16">
+                                    <div className="space-y-4 overflow-hidden w-full max-w-full">
+                                        <div className="rounded-[2.5rem] overflow-hidden shadow-2xl bg-zinc-900 border border-zinc-800 aspect-video relative">
+                                            <img src={activeImage} alt={selectedCar.modello} className="w-full h-full object-cover transition-opacity duration-300" />
+                                        </div>
+                                        {carImages.length > 1 && (
+                                            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                                                {carImages.map((img, idx) => (
+                                                    <div 
+                                                        key={idx} 
+                                                        onClick={() => setActiveImage(img)}
+                                                        className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden cursor-pointer border-4 transition ${activeImage === img ? 'border-red-600 shadow-lg' : 'border-zinc-900 opacity-50 hover:opacity-100'}`}
+                                                    >
+                                                        <img src={img} className="w-full h-full object-cover" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col overflow-hidden w-full max-w-full">
+                                        <span className="bg-red-900/30 text-red-400 border border-red-900/50 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest w-fit mb-4">{selectedCar.categoria}</span>
+                                        <h1 className="text-5xl font-black uppercase tracking-tighter text-white leading-none mb-2 break-words">{selectedCar.marca}</h1>
+                                        <p className="text-2xl text-red-500 font-bold uppercase mb-6 break-words">{selectedCar.modello}</p>
+                                        <div className="text-4xl font-black text-white mb-8">€ {Number(selectedCar.prezzo)?.toLocaleString()}</div>
+                                        
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                                            <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 shadow-sm flex flex-col items-center text-center">
+                                                <i data-lucide="calendar" className="w-4 h-4 text-red-500 mb-2"></i>
+                                                <p className="text-[9px] font-bold text-zinc-500 uppercase">Anno</p>
+                                                <p className="font-black text-md text-white">{selectedCar.anno}</p>
+                                            </div>
+                                            <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 shadow-sm flex flex-col items-center text-center">
+                                                <i data-lucide="gauge" className="w-4 h-4 text-red-500 mb-2"></i>
+                                                <p className="text-[9px] font-bold text-zinc-500 uppercase">Km</p>
+                                                <p className="font-black text-md text-white">{Number(selectedCar.km)?.toLocaleString()}</p>
+                                            </div>
+                                            <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 shadow-sm flex flex-col items-center text-center">
+                                                <i data-lucide="fuel" className="w-4 h-4 text-red-500 mb-2"></i>
+                                                <p className="text-[9px] font-bold text-zinc-500 uppercase">Alim.</p>
+                                                <p className="font-black text-md text-white truncate w-full">{selectedCar.alimentazione}</p>
+                                            </div>
+                                            <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 shadow-sm flex flex-col items-center text-center">
+                                                <i data-lucide="settings-2" className="w-4 h-4 text-red-500 mb-2"></i>
+                                                <p className="text-[9px] font-bold text-zinc-500 uppercase">Cambio</p>
+                                                <p className="font-black text-md text-white">{selectedCar.cambio || 'Manuale'}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4 w-full">
+                                            <a href={`https://wa.me/393478204905?text=Buongiorno, vorrei informazioni sulla ${selectedCar.marca} ${selectedCar.modello} vista sul sito.`} target="_blank" className="w-full bg-[#25D366] hover:bg-[#1DA851] text-white flex items-center justify-center gap-3 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition shadow-lg"><i data-lucide="message-circle" className="w-5 h-5"></i>WhatsApp Umberto</a>
+                                            <a href="tel:0924200308" className="w-full bg-zinc-900 border border-zinc-700 hover:bg-red-600 hover:border-red-600 text-white flex items-center justify-center gap-3 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition shadow-lg"><i data-lucide="phone" className="w-5 h-5"></i>Chiama Officina</a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid lg:grid-cols-3 gap-12 border-t border-zinc-800 pt-16">
+                                    <div className="lg:col-span-2 overflow-hidden max-w-full">
+                                        <h3 className="text-2xl font-black uppercase mb-6 text-white">Descrizione <span className="text-red-600">Completa</span></h3>
+                                        <div className="bg-zinc-900 p-6 md:p-8 rounded-[2rem] border border-zinc-800 shadow-sm">
+                                            <p className="text-zinc-400 leading-relaxed whitespace-pre-line text-sm md:text-base break-words">
+                                                {selectedCar.descrizione || "Nessuna descrizione dettagliata fornita per questo veicolo."}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-8 w-full max-w-full">
+                                        <h3 className="text-2xl font-black uppercase mb-6 text-white">Scheda <span className="text-red-600">Tecnica</span></h3>
+                                        <div className="bg-black border border-zinc-800 text-white p-6 md:p-8 rounded-[2rem] shadow-xl w-full">
+                                            <ul className="space-y-5 text-xs md:text-sm uppercase font-bold tracking-wider">
+                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
+                                                    <span className="text-zinc-500">Marca</span>
+                                                    <span className="text-right ml-2 text-white">{selectedCar.marca}</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
+                                                    <span className="text-zinc-500">Modello</span>
+                                                    <span className="text-right ml-2 text-white">{selectedCar.modello}</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
+                                                    <span className="text-zinc-500">Anno</span>
+                                                    <span className="text-right ml-2 text-white">{selectedCar.anno}</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
+                                                    <span className="text-zinc-500">Chilometri</span>
+                                                    <span className="text-right ml-2 text-white">{Number(selectedCar.km)?.toLocaleString()} km</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
+                                                    <span className="text-zinc-500">Alimentazione</span>
+                                                    <span className="text-right ml-2 text-white">{selectedCar.alimentazione}</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
+                                                    <span className="text-zinc-500">Cambio</span>
+                                                    <span className="text-right ml-2 text-white">{selectedCar.cambio || "Manuale"}</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
+                                                    <span className="text-zinc-500">Potenza</span>
+                                                    <span className="text-right ml-2 text-white">{selectedCar.potenza ? `${selectedCar.potenza} CV` : "N/D"}</span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {}
+                        {currentPage === 'contatti' && (
+                            <div className="py-24 px-6 max-w-6xl mx-auto animate-in fade-in duration-700">
+                                <h2 className="text-5xl font-black uppercase mb-16 text-center text-white">Contattaci</h2>
+                                <div className="grid lg:grid-cols-2 gap-16 items-start">
+                                    <div className="space-y-10">
+                                        <div className="bg-zinc-900 p-8 rounded-[2rem] shadow-sm border border-zinc-800 flex gap-6 items-start">
+                                            <div className="bg-red-500/10 p-4 rounded-2xl text-red-500 shadow-sm"><i data-lucide="map-pin" className="w-6 h-6"></i></div>
+                                            <div>
+                                                <h4 className="font-black uppercase text-xs tracking-widest text-zinc-500 mb-2">Dove Siamo</h4>
+                                                <p className="text-lg font-bold text-white leading-tight">Strada Statale 113 snc<br/>91011 Alcamo (TP)</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-900 p-8 rounded-[2rem] shadow-sm border border-zinc-800 flex gap-6 items-start">
+                                            <div className="bg-red-500/10 p-4 rounded-2xl text-red-500 shadow-sm"><i data-lucide="phone" className="w-6 h-6"></i></div>
+                                            <div className="w-full">
+                                                <h4 className="font-black uppercase text-xs tracking-widest text-zinc-500 mb-4">I Nostri Recapiti</h4>
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                                                        <span className="font-bold text-zinc-400">Officina (Fisso)</span>
+                                                        <a href="tel:0924200308" className="text-lg font-black text-white hover:text-red-500 transition">0924.200308</a>
+                                                    </div>
+                                                    <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                                                        <span className="font-bold text-zinc-400">Umberto Asta</span>
+                                                        <a href="tel:3478204905" className="text-lg font-black text-white hover:text-red-500 transition">347 8204905</a>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-bold text-zinc-400">Pietro Mulè</span>
+                                                        <a href="tel:3383696890" className="text-lg font-black text-white hover:text-red-500 transition">338 3696890</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-10">
+                                        <div className="bg-zinc-900 p-8 rounded-[2rem] shadow-sm border border-zinc-800 flex gap-6 items-start">
+                                            <div className="bg-red-500/10 p-4 rounded-2xl text-red-500 shadow-sm"><i data-lucide="mail" className="w-6 h-6"></i></div>
+                                            <div className="w-full">
+                                                <h4 className="font-black uppercase text-xs tracking-widest text-zinc-500 mb-4">Email Ufficiali</h4>
+                                                <div className="space-y-3">
+                                                    <a href="mailto:info@autocarrozzeriaexclusive.it" className="block text-sm md:text-base font-bold text-white hover:text-red-500 transition break-all border-b border-zinc-800 pb-2">info@autocarrozzeriaexclusive.it</a>
+                                                    <a href="mailto:autocarrozzeriaexclusive2012@gmail.com" className="block text-sm md:text-base font-bold text-white hover:text-red-500 transition break-all">autocarrozzeriaexclusive2012@gmail.com</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-black border border-zinc-800 p-8 rounded-[2rem] shadow-xl flex flex-col items-center text-center justify-center relative overflow-hidden">
+                                            <div className="absolute -right-4 -top-4 opacity-5"><i data-lucide="at-sign" className="w-32 h-32 text-white"></i></div>
+                                            <h3 className="text-2xl font-black uppercase mb-6 text-white tracking-tighter relative z-10">Social & Network</h3>
+                                            <p className="text-zinc-500 text-sm mb-6 relative z-10">Seguici per rimanere aggiornato sui nostri ultimi lavori e le offerte sulla compravendita auto.</p>
+                                            <div className="flex gap-4 w-full relative z-10">
+                                                <button className="flex-1 bg-zinc-900 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-red-600 hover:border-red-600 transition backdrop-blur-sm border border-zinc-800">
+                                                    <img src={FB_ICON} className="w-5 h-5 social-icon-img" alt="Facebook" /> Facebook
+                                                </button>
+                                                <button className="flex-1 bg-zinc-900 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-red-600 hover:border-red-600 transition backdrop-blur-sm border border-zinc-800">
+                                                    <img src={IG_ICON} className="w-5 h-5 social-icon-img" alt="Instagram" /> Instagram
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {}
+                        {currentPage === 'chisiamo' && (
+                            <div className="py-24 px-6 max-w-7xl mx-auto animate-in fade-in duration-700">
+                                <div className="text-center mb-16">
+                                    <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter text-white mb-6">La Nostra <span className="text-red-600">Storia</span></h2>
+                                    <p className="text-xl text-zinc-400 font-bold max-w-3xl mx-auto">Dal 2012 l'Autocarrozzeria Exclusive è sinonimo di competenza, innovazione e passione ad Alcamo.</p>
+                                </div>
+
+                                <div className="grid lg:grid-cols-2 gap-16 items-center mb-24">
+                                    <div className="space-y-6">
+                                        <div className="inline-flex items-center gap-2 bg-red-900/20 border border-red-900/50 px-4 py-2 rounded-full mb-2">
+                                            <i data-lucide="calendar" className="w-4 h-4 text-red-500"></i>
+                                            <span className="text-xs font-bold uppercase tracking-widest text-red-400">Fondata il 27 Marzo 2012</span>
+                                        </div>
+                                        <h3 className="text-3xl font-black uppercase text-white">Le origini e i <span className="text-red-600">Soci Fondatori</span></h3>
+                                        <p className="text-zinc-300 leading-relaxed text-lg">
+                                            L'<strong>Autocarrozzeria Exclusive di Asta & Mulè S.n.c.</strong> nasce ufficialmente ad Alcamo, in provincia di Trapani, grazie all'iniziativa e alla forte sinergia dei soci fondatori <strong>Umberto Asta</strong> e <strong>Pietro Mulè</strong>.
+                                        </p>
+                                        <p className="text-zinc-300 leading-relaxed text-lg">
+                                            Nel corso degli anni ci siamo specializzati per offrire un servizio a 360 gradi: dalla verniciatura a forno, alla raddrizzatura scocche su banco, fino alla diagnosi computerizzata. L'alto livello di competenza ci ha permesso di diventare un'orgogliosa <strong>Officina fiduciaria Mercedes Benz</strong>.
+                                        </p>
+                                        <p className="text-zinc-300 leading-relaxed text-lg bg-zinc-900 p-6 rounded-2xl border-l-4 border-red-600">
+                                            Oggi, l’azienda si occupa anche della compravendita di veicoli garantiti. Questo settore è gestito con cura e professionalità grazie alla preziosa collaborazione con <strong>Daniele Nicosia</strong>, offrendo un parco auto selezionato per ogni esigenza.
+                                        </p>
+                                    </div>
+                                    <div className="bg-black border border-zinc-800 rounded-[3rem] p-8 md:p-12 shadow-2xl text-white relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-8 opacity-5"><i data-lucide="users" className="w-32 h-32"></i></div>
+                                        <div className="relative z-10">
+                                            <i data-lucide="award" className="w-12 h-12 text-red-600 mb-6"></i>
+                                            <h4 className="text-2xl font-black uppercase mb-4">Il Nostro Team Direttivo</h4>
+                                            <div className="space-y-6 mt-8">
+                                                <div className="flex items-center gap-4 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+                                                    <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center font-black text-xl text-white shadow-lg shadow-red-900/50">U</div>
+                                                    <div>
+                                                        <p className="font-bold uppercase tracking-widest text-sm text-white">Umberto Asta</p>
+                                                        <p className="text-zinc-500 text-[10px] uppercase tracking-widest">Socio Fondatore & Titolare</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+                                                    <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center font-black text-xl text-white shadow-lg shadow-red-900/50">P</div>
+                                                    <div>
+                                                        <p className="font-bold uppercase tracking-widest text-sm text-white">Pietro Mulè</p>
+                                                        <p className="text-zinc-500 text-[10px] uppercase tracking-widest">Socio Fondatore & Titolare</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+                                                    <div className="w-12 h-12 bg-zinc-700 rounded-full flex items-center justify-center font-black text-xl text-white">D</div>
+                                                    <div>
+                                                        <p className="font-bold uppercase tracking-widest text-sm text-white">Daniele Nicosia</p>
+                                                        <p className="text-zinc-500 text-[10px] uppercase tracking-widest">Responsabile Compravendita Auto</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {}
+                    <footer className="bg-black text-white py-16 px-6 mt-auto border-t-[6px] border-red-600">
+                        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-12 border-b border-zinc-800 pb-12 mb-8">
+                            <div>
+                                <h4 className="font-black uppercase text-2xl mb-2">Autocarrozzeria <br/><span className="text-red-600">Exclusive</span></h4>
+                                <p className="text-zinc-400 text-sm leading-relaxed mb-6 mt-4">Officina fiduciaria Mercedes Benz. Carrozzeria, servizi specializzati e compravendita auto usate ad Alcamo.</p>
+                                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">P.IVA: 02408040810</p>
+                            </div>
+                            <div className="space-y-4">
+                                <h5 className="font-bold uppercase text-xs tracking-widest text-red-500">Contatti Rapidi</h5>
+                                <div className="flex flex-col gap-3">
+                                    <a href="tel:0924200308" className="text-zinc-300 font-bold hover:text-red-500 transition flex items-center gap-3">
+                                        <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg"><i data-lucide="phone" className="w-4 h-4"></i></div> 
+                                        0924.200308 (Fisso)
+                                    </a>
+                                    <a href="tel:3478204905" className="text-zinc-300 font-bold hover:text-red-500 transition flex items-center gap-3">
+                                        <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg"><i data-lucide="smartphone" className="w-4 h-4"></i></div> 
+                                        347 8204905 (Umberto)
+                                    </a>
+                                    <a href="tel:3383696890" className="text-zinc-300 font-bold hover:text-red-500 transition flex items-center gap-3">
+                                        <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg"><i data-lucide="smartphone" className="w-4 h-4"></i></div> 
+                                        338 3696890 (Pietro)
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <h5 className="font-bold uppercase text-xs tracking-widest text-red-500">Sede & Email</h5>
+                                <div className="flex flex-col gap-4">
+                                    <p className="text-zinc-300 font-bold flex items-start gap-3">
+                                        <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg"><i data-lucide="map-pin" className="w-4 h-4"></i></div>
+                                        <span>Strada Statale 113 snc<br/><span className="text-zinc-500 font-medium">91011 Alcamo (TP)</span></span>
+                                    </p>
+                                    <p className="text-zinc-300 font-bold flex items-start gap-3">
+                                        <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg"><i data-lucide="mail" className="w-4 h-4"></i></div>
+                                        <span className="flex flex-col gap-1 text-sm break-all">
+                                            <a href="mailto:info@autocarrozzeriaexclusive.it" className="hover:text-red-500 transition">info@autocarrozzeriaexclusive.it</a>
+                                            <a href="mailto:autocarrozzeriaexclusive2012@gmail.com" className="hover:text-red-500 transition text-xs text-zinc-500">autocarrozzeriaexclusive2012@gmail.com</a>
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+                            <span>&copy; 2024 Autocarrozzeria Exclusive di Asta & Mulè S.n.c.</span>
+                            <span>Tutti i diritti riservati.</span>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
