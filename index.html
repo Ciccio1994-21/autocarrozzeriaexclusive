@@ -391,32 +391,40 @@
                                         <div className="bg-black border border-zinc-800 text-white p-6 md:p-8 rounded-[2rem] shadow-xl w-full">
                                             <ul className="space-y-5 text-xs md:text-sm uppercase font-bold tracking-wider">
                                                 <li className="flex justify-between border-b border-zinc-800 pb-2">
-                                                    <span className="text-zinc-500">Marca</span>
-                                                    <span className="text-right ml-2 text-white">{selectedCar.marca}</span>
+                                                   <span className="text-slate-400">Marca</span>
+                                                    <span className="text-right ml-2">{selectedCar.marca}</span>
                                                 </li>
-                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
-                                                    <span className="text-zinc-500">Modello</span>
-                                                    <span className="text-right ml-2 text-white">{selectedCar.modello}</span>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Modello</span>
+                                                    <span className="text-right ml-2">{selectedCar.modello}</span>
                                                 </li>
-                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
-                                                    <span className="text-zinc-500">Anno</span>
-                                                    <span className="text-right ml-2 text-white">{selectedCar.anno}</span>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Anno</span>
+                                                    <span className="text-right ml-2">{selectedCar.anno}</span>
                                                 </li>
-                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
-                                                    <span className="text-zinc-500">Chilometri</span>
-                                                    <span className="text-right ml-2 text-white">{Number(selectedCar.km)?.toLocaleString()} km</span>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Chilometri</span>
+                                                    <span className="text-right ml-2">{Number(selectedCar.km)?.toLocaleString()} km</span>
                                                 </li>
-                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
-                                                    <span className="text-zinc-500">Alimentazione</span>
-                                                    <span className="text-right ml-2 text-white">{selectedCar.alimentazione}</span>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Alimentazione</span>
+                                                    <span className="text-right ml-2">{selectedCar.alimentazione}</span>
                                                 </li>
-                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
-                                                    <span className="text-zinc-500">Cambio</span>
-                                                    <span className="text-right ml-2 text-white">{selectedCar.cambio || "Manuale"}</span>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Cambio</span>
+                                                    <span className="text-right ml-2">{selectedCar.cambio || "Manuale"}</span>
                                                 </li>
-                                                <li className="flex justify-between border-b border-zinc-800 pb-2">
-                                                    <span className="text-zinc-500">Potenza</span>
-                                                    <span className="text-right ml-2 text-white">{selectedCar.potenza ? `${selectedCar.potenza} CV` : "N/D"}</span>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Potenza</span>
+                                                    <span className="text-right ml-2">{selectedCar.potenza ? `${selectedCar.potenza} CV` : "N/D"}</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Cilindrata</span>
+                                                    <span className="text-right ml-2">{selectedCar.cilindrata ? `${selectedCar.cilindrata} cc` : "N/D"}</span>
+                                                </li>
+                                                <li className="flex justify-between border-b border-white/10 pb-2">
+                                                    <span className="text-slate-400">Colore</span>
+                                                    <span className="text-right ml-2">{selectedCar.colore || "N/D"}</span>
                                                 </li>
                                             </ul>
                                         </div>
